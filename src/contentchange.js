@@ -79,20 +79,32 @@
       process : function( data )
       {
          // process the events
-         var targetElement = data.target,
+         var targetElement = data.target;
 
-             tagName = targetElement.tagName,
+         // if the targetElement has already been processed
+         // then return immediately 
+         if( targetElement.processed )
+            return;
+
+         var tagName = targetElement.tagName,
+             // cache the tag name of the target element
              
              clone = targetElement.cloneNode();
+             // and make a clone
 
          var methodNames = defaults.methodNames,
+             // get the names of the methods
              
              index = methodNames.length,
+             // and keep an index set initially to the length
+             // to be used later for iterating the list
 
              methods = ( defaults[ tagName ] !== undefined )?
                 defaults[ tagName ] : false;
+             // and get the cached method if they exist, or
+             // simply set the value of method to false
          
-         // for each method named in the list
+         // for each method named in the list...
          while( --index >= 0 )
          {
             
@@ -148,9 +160,12 @@
 
          }
 
+         // if we have the ability to redefine the properties of
+         // HTML elements, then
          if( typeof Object.defineProperty === 'function' )
          {
-            targetElement.defineProperty;
+
+            //Object.defineProperty(
 
          }
       },
