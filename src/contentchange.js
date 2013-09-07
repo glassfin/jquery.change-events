@@ -74,25 +74,84 @@
 
    ChangeEvent = $.CustomEvent.EventType( 'contentchange',
    {
-
       // get a handler in there that is called when the user adds
       // another event handler
       process : function( data )
       {
-         if( typeof Object.defineProperty === 'function' )
+         // process the events
+         var targetElement = data.target,
+
+             tagName = targetElement.tagName,
+             
+             clone = targetElement.cloneNode();
+
+         var methodNames = defaults.methodNames,
+             
+             index = methodNames.length,
+
+             methods = ( defaults[ tagName ] !== undefined )?
+                defaults[ tagName ] : false;
+         
+         // for each method named in the list
+         while( --index >= 0 )
          {
-            var targetElement = data.target,
+            
+            var methodName = methodNames[ index ],
+                // get the name of the method     
+                
+                method = ( methods )? 
+                   methods[ methodName ] :
+                   ( typeof targetElement[ methodName ] == 'function' )?
+                      defaults[tagName][ methodName ] = 
+                         targetElement[ methodName ] : 
+                      false;
+                // and get the method from the cache if cache
+                // exists, or if it doesn't, cache the method in {defaults}
+                // so other HTML element with the same tag name can just
+                // access the cache instead (which might be faster) 
 
-                clone = targetElement.cloneNode();
+            // in the rare event that the method name is actually NOT
+            // supported, don't do anything
+            if( !method ) continue;
 
-            targetElement.defineProperty;
+            // otherwise, override the method to account for triggering
+            // of the event
+            targetElement[ methodName ] = function()
+            {
+               // store the argument
+               var args = arguments;
+               
+               // trigger the pre- and post-contentchange events with
+               $.CustomEvent.trigger( targetElement,
+                                      // the target element
+
+                                      'contentchange',
+                                      // the event name
+
+                                      {
+                                         trigger : methodName,
+
+                                         params  : args
+                                      },
+                                      // any additional data associated
+
+                                      function()
+                                      {
+                                         // invoke the original method 
+                                         return method.apply( 
+                                            targetElement, args );
+                                      }
+                                      // a closure wrapper for the original
+                                      // method
+                                     );
+            }
 
          }
-         else
+
+         if( typeof Object.defineProperty === 'function' )
          {
-            // the best we can hope for is to leave properties 
-            // behind, and go for strictly methods: $.fn.html,
-            // and the remainder of those functions
+            targetElement.defineProperty;
+
          }
       },
 
