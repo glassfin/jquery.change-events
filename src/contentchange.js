@@ -55,7 +55,7 @@
          propertyObj.set = function( value )
          {
             // trigger the pre- and post-contentchange events with
-            $.CustomEvent.trigger( targetElement,
+            $.CustomEvent.trigger( eventTarget,
                                    // the target element
 
                                    'contentchange',
@@ -87,20 +87,20 @@
 
                                           length = childNodes.length,
 
-                                          tagName = targetElement.tagName || 'baseMethods';
+                                          tagName = eventTarget.tagName || 'baseMethods';
 
                                       // clear target element's inner content
-                                      while( targetElement.childNodes.length )
+                                      while( eventTarget.childNodes.length )
                                       {
-                                         defaults[ tagName ].removeChild.call( targetElement,
-                                            targetElement.childNodes[ 0 ] ); 
+                                         defaults[ tagName ].removeChild.call( eventTarget,
+                                            eventTarget.childNodes[ 0 ] ); 
                                       }
 
                                       // and successively add the inner content of the
                                       // clone
                                       while( ++index < length )
                                       {
-                                         defaults[ tagName ].appendChild.call( targetElement,
+                                         defaults[ tagName ].appendChild.call( eventTarget,
                                             childNodes[ index ] );
                                       }
                                    }
@@ -109,7 +109,7 @@
          }
 
          // the getter which...
-         propertyObj.get = function( value )
+         propertyObj.get = function( )
          {
             // just returns the same property on the clone
             return clone[ propertyName ];
@@ -117,6 +117,8 @@
 
          // now override the existing property
          Object.defineProperty( eventTarget, propertyName, propertyObj );
+
+         console.log( eventTarget[ propertyName ] );
 
       };
 
@@ -198,7 +200,7 @@
              // to be used later for iterating the list
 
              methods = ( defaults[ tagName ] !== undefined )?
-                defaults[ tagName ] : defaults[ tagName ] = {} && false;
+                defaults[ tagName ] : (defaults[ tagName ] = {}) && false;
              // and get the cached method if they exist, or
              // simply set the value of method to false
          
@@ -274,7 +276,7 @@
          // HTML elements via defineProperty, then skip this step
          if( typeof Object.defineProperty != 'function' ) return;
          
-         var propertyNames = defaults.methodNames,
+         var propertyNames = defaults.propertyNames,
              // get the names of the methods
              
 
@@ -302,7 +304,8 @@
       }
    });
    
-   // fill out each of the methods
+   // fill out each of the methods based on the handling for
+   // HTMLElement
    var methodNames = defaults.methodNames, 
 
        index = methodNames.length,
@@ -323,7 +326,10 @@
 
    $('p').contentchange( function( event )
    {
+      console.log( 'hello' );
    });
+
+   $('p').html('no!');
 
 })( $ );
 
