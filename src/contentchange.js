@@ -22,8 +22,9 @@
 (function( $ )
 {
    // define a list of names that
-   var nativeMethods = {
-      names : [ 'appendChild', 
+   var defaults = {
+      methodNames : [ // Gecko-Webikit 
+                'appendChild', 
 
                 'insertAdjacentElement', 
 
@@ -35,12 +36,39 @@
 
                 'removeChild',
 
-                'replaceChild'
+                'replaceChild',
+
+                'normalize',
+
+                // MS-IE
+                'applyElement',
+
+                'replaceAdjacentText',
+
+                'removeNode',
+
+                'replaceNode',
+
+                'swapNode'
+
               ],
+
+      propertyNames : [
+         'dir',
+
+         'innerHTML',
+
+         'outerHTML',
+
+         'innerText',
+
+         'outerText',
+
+         'textContent'
+      ],
       
       // HTMLElement
-      base : {
-         appendChild : HTMLElement
+      baseMethods : {
       }
    },
 
@@ -62,8 +90,8 @@
          }
          else
          {
-            // the best we can hope for is to leave innerHTML
-            // behind, and go for the other stuff: $.fn.html,
+            // the best we can hope for is to leave properties 
+            // behind, and go for strictly methods: $.fn.html,
             // and the remainder of those functions
          }
       },
@@ -73,6 +101,23 @@
 
       }
    });
+   
+   // fill out each of the methods
+   var methodNames = defaults.methodNames, 
+
+       index = methodNames.length,
+
+       baseMethods = defaults.baseMethods;
+
+   while( --index >= 0 )
+   {
+      var methodName = methodNames[ index ],
+          
+          method = HTMLElement.prototype[ methodName ];
+
+      if( typeof method == 'function' )
+         baseMethods[ methodName ] = method;
+   }
 
    $.CustomEvent.register( ChangeEvent );
 
@@ -80,13 +125,34 @@
    {
    });
 
-   return {
-      html : $.html
-   }
 })( $ );
 
 
 /* IE prototypes for element that we should pay attention to
+Change Events
+
+Properties:
+LOG: dir                        // reading direction
+LOG: innerHTML 
+LOG: outerHTML 
+LOG: innerText 
+LOG: outerText 
+LOG: textContent 
+
+Methods
+LOG: insertAdjacentHTML 
+LOG: applyElement 
+LOG: insertAdjacentElement 
+LOG: insertAdjacentText 
+LOG: replaceAdjacentText 
+LOG: removeNode 
+LOG: replaceNode 
+LOG: swapNode 
+LOG: appendChild 
+LOG: insertBefore 
+LOG: normalize 
+LOG: removeChild 
+LOG: replaceChild 
 
 LOG: currentStyle 
 LOG: runtimeStyle 
@@ -99,26 +165,22 @@ LOG: innerHTML
 LOG: isContentEditable 
 LOG: outerHTML 
 LOG: style 
-LOG: title (not sure what the heck this does)
-LOG: document 
-LOG: filters 
+LOG: title*
+LOG: filters*
 LOG: innerText 
 LOG: onbeforepaste 
 LOG: onfilterchange 
 LOG: outerText 
-LOG: parentTextEdit 
 LOG: insertAdjacentHTML 
 LOG: addFilter 
 LOG: applyElement 
 LOG: clearAttributes 
-LOG: dragDrop 
 LOG: insertAdjacentElement 
 LOG: insertAdjacentText 
 LOG: mergeAttributes 
 LOG: removeBehavior 
 LOG: removeFilter 
 LOG: replaceAdjacentText 
-LOG: setActive 
 LOG: removeNode 
 LOG: replaceNode 
 LOG: swapNode 
@@ -135,4 +197,6 @@ LOG: insertBefore
 LOG: normalize 
 LOG: removeChild 
 LOG: replaceChild 
+
+* not sure what these does
 */
