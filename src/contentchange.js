@@ -11,16 +11,115 @@
  * Ff : 4 ( Gecko 2 )
  * Ch : 5
  * IE : 9 ( 8 untested, but might work )
- * Op : 11.6
+ * Op : 11.6/12
  * Sa : 5.1
  *
  * Note: this plugin wraps the native innerHTML,
  * appendChild, removeChild, insertAdjacentElement, insertAdjacentHTML,
  * insertAdjacentText, insertBefore, replaceChild ( Gecko )
  *
+ * and a lot of other IE functions (which we will not mention).
+ *
+ * Note: This also wraps WebkitMutationEvent, which deprecates more 
+ * than 90% of the code written here.
+ *
  */
 (function( $ )
 {
+   // TODO: Write something for MutationEvents
+
+   // define a set property descriptor that uses defineProperty to
+   // set a property descriptor
+   Object.setPropertyDescriptor = 
+      function( eventTarget, propertyName, handler )
+      {
+         var propertyObj = 
+            Object.getOwnPropertyDescriptor( eventTarget, propertyName ),
+             // get the property object via descriptor
+
+             clone = eventTarget._clone;
+             // cache the clone
+
+         // if the property descriptor gives us nothing, then
+         // the property is not supported; do nothing 
+         if( propertyObj == undefined ) 
+            return false;
+
+         // it should not have value
+         delete propertyObj.value;
+
+         // it should not be writable
+         delete propertyObj.writable;
+
+         // the setter with trigger
+         propertyObj.set = function( value )
+         {
+            // trigger the pre- and post-contentchange events with
+            $.CustomEvent.trigger( targetElement,
+                                   // the target element
+
+                                   'contentchange',
+                                   // the event name
+
+                                   {
+                                      trigger : 'set ' + propertyName,
+
+                                      newValue : value,
+
+                                      oldValue : clone[ propertyName ]
+                                   },
+                                   // any additional data associated
+
+                                   function()
+                                   {
+                                      // set the property on the clone
+                                      clone[ propertyName ] = value;
+                                      
+                                      // and normalize the clone's inner content
+                                      if( clone.normalize )
+                                         clone.normalize();
+
+                                      // then set the target element's 
+                                      // inner content
+                                      var childNodes = clone.childNodes || clone.children,
+
+                                          index = -1,
+
+                                          length = childNodes.length,
+
+                                          tagName = targetElement.tagName || 'baseMethods';
+
+                                      // clear target element's inner content
+                                      while( targetElement.childNodes.length )
+                                      {
+                                         defaults[ tagName ].removeChild.call( targetElement,
+                                            targetElement.childNodes[ 0 ] ); 
+                                      }
+
+                                      // and successively add the inner content of the
+                                      // clone
+                                      while( ++index < length )
+                                      {
+                                         defaults[ tagName ].appendChild.call( targetElement,
+                                            childNodes[ index ] );
+                                      }
+                                   }
+                                   // a closure wrapper for the setter
+                                  );
+         }
+
+         // the getter which...
+         propertyObj.get = function( value )
+         {
+            // just returns the same property on the clone
+            return clone[ propertyName ];
+         }
+
+         // now override the existing property
+         Object.defineProperty( eventTarget, propertyName, propertyObj );
+
+      };
+
    // define a list of names that
    var defaults = {
       methodNames : [ // Gecko-Webikit 
@@ -54,8 +153,6 @@
               ],
 
       propertyNames : [
-         'dir',
-
          'innerHTML',
 
          'outerHTML',
@@ -86,10 +183,11 @@
          if( targetElement.processed )
             return;
 
-         var tagName = targetElement.tagName,
-             // cache the tag name of the target element
+         var tagName = targetElement.tagName || 'baseMethods',
+             // cache the tag name of the target element, or if
+             // it doesn't exist, use the baseMethods
              
-             clone = targetElement.cloneNode();
+             clone = targetElement._clone = targetElement.cloneNode();
              // and make a clone
 
          var methodNames = defaults.methodNames,
@@ -100,21 +198,27 @@
              // to be used later for iterating the list
 
              methods = ( defaults[ tagName ] !== undefined )?
-                defaults[ tagName ] : false;
+                defaults[ tagName ] : defaults[ tagName ] = {} && false;
              // and get the cached method if they exist, or
              // simply set the value of method to false
          
+         // clone the innerHTML
+         clone.innerHTML = targetElement.innerHTML;
+
+         // clone the dir attribute
+         if( targetElement.dir !== undefined )
+            clone.dir = targetElement.dir;
+
          // for each method named in the list...
          while( --index >= 0 )
          {
-            
             var methodName = methodNames[ index ],
                 // get the name of the method     
                 
                 method = ( methods )? 
                    methods[ methodName ] :
                    ( typeof targetElement[ methodName ] == 'function' )?
-                      defaults[tagName][ methodName ] = 
+                      defaults[ tagName ][ methodName ] = 
                          targetElement[ methodName ] : 
                       false;
                 // and get the method from the cache if cache
@@ -149,7 +253,13 @@
 
                                       function()
                                       {
-                                         // invoke the original method 
+                                         // first invoke the methods on the 
+                                         // clone (so the clone can have the
+                                         // same attributes as the target)
+                                         method.apply( clone, args );
+
+                                         // then invoke the original method 
+                                         // on the target element
                                          return method.apply( 
                                             targetElement, args );
                                       }
@@ -160,14 +270,30 @@
 
          }
 
-         // if we have the ability to redefine the properties of
-         // HTML elements, then
-         if( typeof Object.defineProperty === 'function' )
+         // if we don't have the ability to redefine the properties of
+         // HTML elements via defineProperty, then skip this step
+         if( typeof Object.defineProperty != 'function' ) return;
+         
+         var propertyNames = defaults.methodNames,
+             // get the names of the methods
+             
+
+             methods = ( defaults[ tagName ] !== undefined )?
+                defaults[ tagName ] : false;
+             // and get the cached method if they exist, or
+             // simply set the value of method to false
+ 
+         // reset index initially to the length of the
+         // propertyNames list, to be used later for
+         // to be used later for iterating the list
+         index = propertyNames.length;
+
+         while( --index >= 0 )
          {
-
-            //Object.defineProperty(
-
+               Object.setPropertyDescriptor( targetElement, 
+                  propertyNames[ index ] );
          }
+
       },
 
       cleanup : function( data )
