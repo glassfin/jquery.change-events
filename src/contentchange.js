@@ -103,6 +103,8 @@
                                          defaults[ tagName ].appendChild.call( eventTarget,
                                             childNodes[ index ] );
                                       }
+
+                                      clone[ propertyName ] = value;
                                    }
                                    // a closure wrapper for the setter
                                   );
