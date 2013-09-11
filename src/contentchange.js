@@ -64,7 +64,11 @@
                      while( --index >= 0 )
                      {
                         var mutationRecord = mutations[ index ];
+
+                        // if the mutation event type is childlist
                         if( mutationRecord.type == 'childList' )
+                        {
+                           // trigger the content change event
                            $.CustomEvent.trigger
                               ( eventTarget,
                                 // the target element
@@ -83,7 +87,13 @@
                                  }
                                  // data associated with the
                                  // mutation
+
+                                 // we are not providing any methods to
+                                 // execute, because principly, the observer
+                                 // is called when the action has already
+                                 // been performed
                                );
+                        }
                      }
 
                   } );
@@ -93,19 +103,149 @@
          },
 
          cancellable : false,
+         // this event is not cancellable
 
          cleanup : function( data )
          {
+            // if there are no more mutataion observers, then
+            // we should simply call cleanup by calling the disconnect
+            // method of the mutation observer, and then delete it
             if( --eventTarget.mutObsCount == 0 )
             {
                eventTarget.mutationObserver.disconnect();
                delete eventTarget.mutationObserver;
             }
          }
+         // method to call when an event listener is removed
       });
 
       $.CustomEvent.register( MutationEvent );
       return;
+   }
+
+   // defining a function for taking a Node and wrapping event
+   // listening mutators and properties
+   function wrapMuts( nodeTarget )
+   {
+      if( nodeTarget.processed )
+         return;
+
+      // set the nodeTarget's processed property
+      nodeTarget.processed = true;
+
+      var tagName = nodeTarget.tagName || 'baseMethods',
+          // cache the tag name of the target element, or if
+          // it doesn't exist, use the baseMethods
+          
+          clone = nodeTarget._clone = nodeTarget.cloneNode();
+          // and make a clone
+
+      var methodNames = defaults.methodNames,
+          // get the names of the methods
+          
+          index = methodNames.length,
+          // and keep an index set initially to the length
+          // to be used later for iterating the list
+
+          methods = ( defaults[ tagName ] !== undefined )?
+             defaults[ tagName ] : (defaults[ tagName ] = {}) && false;
+          // and get the cached method if they exist, or
+          // simply set the value of method to false
+      
+      // clone the innerHTML
+      clone.innerHTML = nodeTarget.innerHTML;
+
+      // clone the dir attribute
+      if( nodeTarget.dir !== undefined )
+         clone.dir = nodeTarget.dir;
+
+      // for each method named in the list...
+      while( --index >= 0 )
+      {
+         var methodName = methodNames[ index ],
+             // get the name of the method     
+             
+             method = ( methods )? 
+                methods[ methodName ] :
+                ( typeof nodeTarget[ methodName ] == 'function' )?
+                   defaults[ tagName ][ methodName ] = 
+                      nodeTarget[ methodName ] : 
+                   false;
+             // and get the method from the cache if cache
+             // exists, or if it doesn't, cache the method in {defaults}
+             // so other HTML element with the same tag name can just
+             // access the cache instead (which might be faster) 
+
+         // in the rare event that the method name is actually NOT
+         // supported, don't do anything
+         if( !method ) continue;
+
+         // otherwise, override the method to account for triggering
+         // of the event
+         nodeTarget[ methodName ] = function()
+         {
+            // store the argument
+            var args = arguments;
+            
+            // trigger the pre- and post-contentchange events with
+            $.CustomEvent.trigger
+               ( nodeTarget,
+                 // the target element
+
+                 'contentchange',
+                 // the event name
+
+                 {
+                    cancellable : true,
+
+                    trigger : methodName,
+
+                    params  : args
+                 },
+                 // any additional data associated
+
+                 function()
+                 {
+                    // first invoke the methods on the 
+                    // clone (so the clone can have the
+                    // same attributes as the target)
+                    method.apply( clone, args );
+
+                    // then invoke the original method 
+                    // on the target element
+                    return method.apply( 
+                       nodeTarget, args );
+                 }
+                 // a closure wrapper for the original
+                 // method
+                );
+         }
+
+      }
+
+      // if we don't have the ability to redefine the properties of
+      // HTML elements via defineProperty, then skip this step
+      if( typeof Object.defineProperty != 'function' ) return;
+      
+      var propertyNames = defaults.propertyNames,
+          // get the names of the methods
+
+          methods = ( defaults[ tagName ] !== undefined )?
+             defaults[ tagName ] : false;
+          // and get the cached method if they exist, or
+          // simply set the value of method to false
+
+      // reset index initially to the length of the
+      // propertyNames list, to be used later for
+      // to be used later for iterating the list
+      index = propertyNames.length;
+
+      while( --index >= 0 )
+      {
+            Object.setPropertyDescriptor( nodeTarget, 
+               propertyNames[ index ] );
+      }
+
    }
 
    // define a set property descriptor that uses defineProperty to
@@ -265,128 +405,8 @@
          // process the events
          var targetElement = data.target;
 
-         // if the targetElement has already been processed
-         // then return immediately 
-         if( targetElement.processed )
-            return;
-
-         // set the targetElement's processed property
-         targetElement.processed = true;
-
-         var tagName = targetElement.tagName || 'baseMethods',
-             // cache the tag name of the target element, or if
-             // it doesn't exist, use the baseMethods
-             
-             clone = targetElement._clone = targetElement.cloneNode();
-             // and make a clone
-
-         var methodNames = defaults.methodNames,
-             // get the names of the methods
-             
-             index = methodNames.length,
-             // and keep an index set initially to the length
-             // to be used later for iterating the list
-
-             methods = ( defaults[ tagName ] !== undefined )?
-                defaults[ tagName ] : (defaults[ tagName ] = {}) && false;
-             // and get the cached method if they exist, or
-             // simply set the value of method to false
-         
-         // clone the innerHTML
-         clone.innerHTML = targetElement.innerHTML;
-
-         // clone the dir attribute
-         if( targetElement.dir !== undefined )
-            clone.dir = targetElement.dir;
-
-         // for each method named in the list...
-         while( --index >= 0 )
-         {
-            var methodName = methodNames[ index ],
-                // get the name of the method     
-                
-                method = ( methods )? 
-                   methods[ methodName ] :
-                   ( typeof targetElement[ methodName ] == 'function' )?
-                      defaults[ tagName ][ methodName ] = 
-                         targetElement[ methodName ] : 
-                      false;
-                // and get the method from the cache if cache
-                // exists, or if it doesn't, cache the method in {defaults}
-                // so other HTML element with the same tag name can just
-                // access the cache instead (which might be faster) 
-
-            // in the rare event that the method name is actually NOT
-            // supported, don't do anything
-            if( !method ) continue;
-
-            // otherwise, override the method to account for triggering
-            // of the event
-            targetElement[ methodName ] = function()
-            {
-               // store the argument
-               var args = arguments;
-               
-               // trigger the pre- and post-contentchange events with
-               $.CustomEvent.trigger
-                  ( targetElement,
-                    // the target element
-
-                    'contentchange',
-                    // the event name
-
-                    {
-                       cancellable : true,
-
-                       trigger : methodName,
-
-                       params  : args
-                    },
-                    // any additional data associated
-
-                    function()
-                    {
-                       // first invoke the methods on the 
-                       // clone (so the clone can have the
-                       // same attributes as the target)
-                       method.apply( clone, args );
-
-                       // then invoke the original method 
-                       // on the target element
-                       return method.apply( 
-                          targetElement, args );
-                    }
-                    // a closure wrapper for the original
-                    // method
-                   );
-            }
-
-         }
-
-         // if we don't have the ability to redefine the properties of
-         // HTML elements via defineProperty, then skip this step
-         if( typeof Object.defineProperty != 'function' ) return;
-         
-         var propertyNames = defaults.propertyNames,
-             // get the names of the methods
-             
-
-             methods = ( defaults[ tagName ] !== undefined )?
-                defaults[ tagName ] : false;
-             // and get the cached method if they exist, or
-             // simply set the value of method to false
- 
-         // reset index initially to the length of the
-         // propertyNames list, to be used later for
-         // to be used later for iterating the list
-         index = propertyNames.length;
-
-         while( --index >= 0 )
-         {
-               Object.setPropertyDescriptor( targetElement, 
-                  propertyNames[ index ] );
-         }
-
+         // now wrap the mutators
+         wrapMuts( nodeTarget );
       },
 
       cleanup : function( data )
