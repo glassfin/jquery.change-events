@@ -27,6 +27,77 @@
 (function( $ )
 {
    // TODO: Write something for MutationEvents
+   var MutationObserver = MutationObserver || WebKitMutationObserver;
+
+   if( typeof MutationObserver == 'function' )
+   {
+      MutationEvent = new $.CustomEvent.EventType( 'contentchange',
+      {
+         process : function( data )
+         {
+            var eventTarget = data.target;
+
+            eventTarget.mutObsCount =
+               eventTarget.mutObsCount? eventTarget.mutObsCount + 1 
+               : 1;
+
+            if( target.mutationObserver )
+            {
+               var mutationConfig = {
+                  childList : true,
+
+                  attributes : true,
+
+                  characterData : true
+               };
+
+               eventTarget.mutationObserver = new MutationObserver(
+                  function( mutations )
+                  {
+                     var index = mutations.length;
+
+                     while( --index >= 0 )
+                     {
+                        var mutationRecord = mutations[ index ];
+                        if( mutationRecord.type == 'childList' )
+                           $.CustomEvent.trigger
+                              ( eventTarget,
+                                // the target element
+
+                                'contentchange',
+                                // the event name
+
+                                {
+                                   oldValue : mutationRecord.oldValue,
+
+                                   trigger : 'change node-tree',
+
+                                   newValue : target.childNodes
+                                 }
+                                 // data associated with the
+                                 // mutation
+                               );
+                     }
+
+                  } );
+
+               target.mutationObserver.observe( eventTarget, mutationConfig );
+            }
+         },
+
+         cleanup : function( data )
+         {
+            if( --eventTarget.mutObsCount == 0 )
+            {
+               eventTarget.mutationObserver.disconnect();
+               delete eventTarget.mutationObserver;
+            }
+         }
+      });
+
+      $.CustomEvent.register( MutationEvent );
+      return;
+   }
 
    // define a set property descriptor that uses defineProperty to
    // set a property descriptor
@@ -55,59 +126,60 @@
          propertyObj.set = function( value )
          {
             // trigger the pre- and post-contentchange events with
-            $.CustomEvent.trigger( eventTarget,
-                                   // the target element
+            $.CustomEvent.trigger
+               ( eventTarget,
+                 // the target element
 
-                                   'contentchange',
-                                   // the event name
+                 'contentchange',
+                 // the event name
 
-                                   {
-                                      trigger : 'set ' + propertyName,
+                 {
+                    trigger : 'set ' + propertyName,
 
-                                      newValue : value,
+                    newValue : value,
 
-                                      oldValue : clone[ propertyName ]
-                                   },
-                                   // any additional data associated
+                    oldValue : clone[ propertyName ]
+                 },
+                 // any additional data associated
 
-                                   function()
-                                   {
-                                      // set the property on the clone
-                                      clone[ propertyName ] = value;
-                                      
-                                      // and normalize the clone's inner content
-                                      if( clone.normalize )
-                                         clone.normalize();
+                 function()
+                 {
+                    // set the property on the clone
+                    clone[ propertyName ] = value;
+                    
+                    // and normalize the clone's inner content
+                    if( clone.normalize )
+                       clone.normalize();
 
-                                      // then set the target element's 
-                                      // inner content
-                                      var childNodes = clone.childNodes || clone.children,
+                    // then set the target element's 
+                    // inner content
+                    var childNodes = clone.childNodes || clone.children,
 
-                                          index = -1,
+                        index = -1,
 
-                                          length = childNodes.length,
+                        length = childNodes.length,
 
-                                          tagName = eventTarget.tagName || 'baseMethods';
+                        tagName = eventTarget.tagName || 'baseMethods';
 
-                                      // clear target element's inner content
-                                      while( eventTarget.childNodes.length )
-                                      {
-                                         defaults[ tagName ].removeChild.call( eventTarget,
-                                            eventTarget.childNodes[ 0 ] ); 
-                                      }
+                    // clear target element's inner content
+                    while( eventTarget.childNodes.length )
+                    {
+                       defaults[ tagName ].removeChild.call( eventTarget,
+                          eventTarget.childNodes[ 0 ] ); 
+                    }
 
-                                      // and successively add the inner content of the
-                                      // clone
-                                      while( ++index < length )
-                                      {
-                                         defaults[ tagName ].appendChild.call( eventTarget,
-                                            childNodes[ index ] );
-                                      }
+                    // and successively add the inner content of the
+                    // clone
+                    while( ++index < length )
+                    {
+                       defaults[ tagName ].appendChild.call( eventTarget,
+                          childNodes[ index ] );
+                    }
 
-                                      clone[ propertyName ] = value;
-                                   }
-                                   // a closure wrapper for the setter
-                                  );
+                    clone[ propertyName ] = value;
+                 }
+                 // a closure wrapper for the setter
+                );
          }
 
          // the getter which...
@@ -187,6 +259,9 @@
          if( targetElement.processed )
             return;
 
+         // set the targetElement's processed property
+         targetElement.processed = true;
+
          var tagName = targetElement.tagName || 'baseMethods',
              // cache the tag name of the target element, or if
              // it doesn't exist, use the baseMethods
@@ -242,34 +317,35 @@
                var args = arguments;
                
                // trigger the pre- and post-contentchange events with
-               $.CustomEvent.trigger( targetElement,
-                                      // the target element
+               $.CustomEvent.trigger
+                  ( targetElement,
+                    // the target element
 
-                                      'contentchange',
-                                      // the event name
+                    'contentchange',
+                    // the event name
 
-                                      {
-                                         trigger : methodName,
+                    {
+                       trigger : methodName,
 
-                                         params  : args
-                                      },
-                                      // any additional data associated
+                       params  : args
+                    },
+                    // any additional data associated
 
-                                      function()
-                                      {
-                                         // first invoke the methods on the 
-                                         // clone (so the clone can have the
-                                         // same attributes as the target)
-                                         method.apply( clone, args );
+                    function()
+                    {
+                       // first invoke the methods on the 
+                       // clone (so the clone can have the
+                       // same attributes as the target)
+                       method.apply( clone, args );
 
-                                         // then invoke the original method 
-                                         // on the target element
-                                         return method.apply( 
-                                            targetElement, args );
-                                      }
-                                      // a closure wrapper for the original
-                                      // method
-                                     );
+                       // then invoke the original method 
+                       // on the target element
+                       return method.apply( 
+                          targetElement, args );
+                    }
+                    // a closure wrapper for the original
+                    // method
+                   );
             }
 
          }
@@ -326,16 +402,8 @@
 
    $.CustomEvent.register( ChangeEvent );
 
-   $('p').contentchange( function( event )
-   {
-      console.log( 'hello' );
-   });
-
-   $('p').html('no!');
 
 })( $ );
-
-
 /* IE prototypes for element that we should pay attention to
 Change Events
 
