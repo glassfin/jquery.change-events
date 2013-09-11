@@ -26,11 +26,14 @@
  */
 (function( $ )
 {
-   // TODO: Write something for MutationEvents
+   // use mutation observer via webkit or base feature supported
+   // see http://mzl.la/11I6MPa - the MDN page for MutationObserver
    var MutationObserver = MutationObserver || WebKitMutationObserver;
 
+   // if MutationObserver is supported one way or another
    if( typeof MutationObserver == 'function' )
    {
+      // define a new content type
       MutationEvent = new $.CustomEvent.EventType( 'contentchange',
       {
          process : function( data )
@@ -43,6 +46,8 @@
 
             if( target.mutationObserver )
             {
+               // we want the minimum config; that way, it would
+               // least likely to cause serious impacts
                var mutationConfig = {
                   childList : true,
 
@@ -68,6 +73,8 @@
                                 // the event name
 
                                 {
+                                   cancellable : false,
+
                                    oldValue : mutationRecord.oldValue,
 
                                    trigger : 'change node-tree',
@@ -84,6 +91,8 @@
                target.mutationObserver.observe( eventTarget, mutationConfig );
             }
          },
+
+         cancellable : false,
 
          cleanup : function( data )
          {
@@ -134,6 +143,8 @@
                  // the event name
 
                  {
+                    cancellable : true,
+
                     trigger : 'set ' + propertyName,
 
                     newValue : value,
@@ -325,6 +336,8 @@
                     // the event name
 
                     {
+                       cancellable : true,
+
                        trigger : methodName,
 
                        params  : args
