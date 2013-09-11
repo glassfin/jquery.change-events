@@ -246,6 +246,20 @@
                propertyNames[ index ] );
       }
 
+      // now wrap mutators for the node's children
+      var childNodes = nodeTarget.childNodes || nodeTarget.children;
+      index = childNodes.length; 
+
+      while( --index >= 0 )
+      {
+         var childNode = childNodes[ index ];
+         if( childNodes.tagName )
+         {
+            // attach the listener to its children 
+            // as well
+            wrapMut( childNode );
+         }
+      }
    }
 
    // define a set property descriptor that uses defineProperty to
